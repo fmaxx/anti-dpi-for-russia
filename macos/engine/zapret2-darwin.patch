@@ -1,0 +1,228 @@
+--- a/nfq2/Makefile
++++ b/nfq2/Makefile
+@@ -157,6 +157,9 @@
+ bsd: $(SRC_FILES)
+ 	$(CC) $(STRIPP) $(CFLAGS) $(LUA_CFL) $(CFLAGS_BSD) -o dvtws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_BSD) $(LDFLAGS)
+ 
++macos: $(SRC_FILES)
++	$(CC) $(STRIPP) $(CFLAGS) $(LUA_CFL) $(CFLAGS_BSD) -o macws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_BSD) $(LDFLAGS)
++
+ cygwin64:
+ 	$(CC) $(STRIPP) $(CFLAGS) $(LUA_CFL) $(CFLAGS_CYGWIN) $(CFLAGS_CYGWIN64) -o winws2 $(SRC_FILES) $(RES_CYGWIN64) $(LIBS) $(LUA_LIB) $(LIBS_CYGWIN) $(LIBS_CYGWIN64) $(LDFLAGS) $(LDFLAGS_CYGWIN)
+ cygwin32:
+@@ -164,4 +167,4 @@
+ cygwin: cygwin64
+ 
+ clean:
+-	rm -f nfqws2 dvtws2 winws2.exe
++	rm -f nfqws2 dvtws2 macws2 winws2.exe
+--- a/nfq2/darkmagic.c
++++ b/nfq2/darkmagic.c
+@@ -19,6 +19,9 @@
+ #include "params.h"
+ #include "nfqws.h"
+ 
++#ifdef __APPLE__
++#include "darwin.h"
++#endif
+ #ifdef __CYGWIN__
+ #include "timer.h"
+ 
+@@ -1793,6 +1796,9 @@
+ }
+ void rawsend_cleanup(void)
+ {
++#ifdef __APPLE__
++	darwin_transport_cleanup();
++#endif
+ 	rawsend_clean_sock(&rawsend_sock4);
+ 	rawsend_clean_sock(&rawsend_sock6);
+ }
+@@ -1976,6 +1982,9 @@
+ }
+ bool rawsend_preinit(bool bind_fix4, bool bind_fix6)
+ {
++#ifdef __APPLE__
++	return darwin_sender_init();
++#endif
+ 	b_bind_fix4 = bind_fix4;
+ 	b_bind_fix6 = bind_fix6;
+ 	// allow ipv6 disabled systems
+@@ -1983,6 +1992,9 @@
+ }
+ bool rawsend(const struct sockaddr* dst,uint32_t fwmark,const char *ifout,const void *data,size_t len)
+ {
++#ifdef __APPLE__
++	return darwin_send(data, len);
++#endif
+ 	ssize_t bytes;
+ 	int sock=rawsend_socket(dst->sa_family);
+ 	if (sock==-1) return false;
+--- a/nfq2/helpers.c
++++ b/nfq2/helpers.c
+@@ -13,6 +13,9 @@
+ #include <errno.h>
+ #include <sys/param.h>
+ 
++#ifdef __APPLE__
++#include <sys/random.h>
++#endif
+ #ifdef __CYGWIN__
+ #include <sys/cygwin.h>
+ #endif
+@@ -435,7 +438,11 @@
+ 		FILE_MOD_RESET(ms);
+ 		return false;
+ 	}
++#ifdef __APPLE__
++	ms->mod_time = st.st_mtimespec;
++#else
+ 	ms->mod_time = st.st_mtim;
++#endif
+ 	ms->size = st.st_size;
+ 	return true;
+ }
+--- a/nfq2/lua.c
++++ b/nfq2/lua.c
+@@ -3740,7 +3740,11 @@
+ 		lua_pushf_lint(L,"dev", st.st_dev);
+ 		lua_pushf_lint(L,"inode", st.st_ino);
+ 		lua_pushf_lint(L,"size", st.st_size);
+-		lua_pushf_number(L,"mtime", st.st_mtim.tv_sec + st.st_mtim.tv_nsec/1000000000.);
++		#ifdef __APPLE__
++			lua_pushf_number(L,"mtime", st.st_mtimespec.tv_sec + st.st_mtimespec.tv_nsec/1000000000.);
++#else
++			lua_pushf_number(L,"mtime", st.st_mtim.tv_sec + st.st_mtim.tv_nsec/1000000000.);
++#endif
+ 
+ 		const char *ftype;
+ 		switch(st.st_mode & S_IFMT)
+--- a/nfq2/nfqws.c
++++ b/nfq2/nfqws.c
+@@ -15,6 +15,9 @@
+ #include "lua.h"
+ #include "crypto/aes.h"
+ 
++#ifdef __APPLE__
++#include "darwin.h"
++#endif
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -617,7 +620,107 @@
+ 	rawsend_cleanup();
+ 	return res;
+ }
++
++#elif defined(__APPLE__)
++
++static int mac_main(void)
++{
++	int res = 1;
++	FILE *Fpid = NULL;
++	uint8_t *mod = NULL;
++	uint64_t bt, bt_next, dbt;
++
++	if (*params.pidfile && !(Fpid = fopen(params.pidfile, "w")))
++	{
++		DLOG_PERROR("create pidfile");
++		return 1;
++	}
++	if (params.intercept && !darwin_capture_init()) goto exiterr;
++	if (!rawsend_preinit(false, false)) goto exiterr;
++	print_id();
++	if (!lua_test_init_script_files()) goto exiterr;
++	catch_signals();
++	if (!lua_init()) goto exiterr;
++	do_fuzz();
++
++	if (!params.intercept)
++	{
++		NoInterceptLoop();
++		goto exitok;
++	}
++	if (!(mod = malloc(RECONSTRUCT_MAX_SIZE)))
++	{
++		DLOG_ERR("out of memory\n");
++		goto exiterr;
++	}
++	if (params.daemon) daemonize();
++	if (!write_pidfile(&Fpid)) goto exiterr;
++	DLOG_CONDUP("PFLOG_READY %s\n", getenv("IGARECK_DARWIN_PFLOG"));
+ 
++	for (bt = bt_next = 0;;)
++	{
++		if (bQuit) goto exitok;
++		if (params.timers)
++		{
++			if (!bt_next) bt_next = TimerPoolNext(params.timers, &params.timers_dirty);
++			bt = boottime_ms();
++			dbt = bt_next > bt ? bt_next - bt : 0;
++			if (dbt > 1000) dbt = 1000;
++		}
++		size_t length = 0;
++		bool incoming = false;
++		const uint8_t *packet = darwin_recv(&length, &incoming);
++		if (bQuit) goto exitok;
++		if (!packet)
++		{
++			if (errno != EINTR && errno != EAGAIN && errno != 0)
++			{
++				DLOG_PERROR("darwin: receive");
++				goto exiterr;
++			}
++		}
++		else
++		{
++			uint32_t mark = 0;
++			size_t modlen = RECONSTRUCT_MAX_SIZE;
++			const char *ifin = incoming ? darwin_interface() : "";
++			const char *ifout = incoming ? "" : darwin_interface();
++			uint8_t verdict = processPacketData(&mark, ifin, ifout, packet, length, mod, &modlen);
++			if (!incoming)
++			{
++				switch (verdict & VERDICT_MASK)
++				{
++				case VERDICT_PASS:
++					if (!darwin_send(packet, length)) DLOG_ERR("darwin: original packet was not sent\n");
++					break;
++				case VERDICT_MODIFY:
++					if (!darwin_send(mod, modlen)) DLOG_ERR("darwin: modified packet was not sent\n");
++					break;
++				default:
++					break;
++				}
++			}
++		}
++		ReloadCheck();
++		lua_do_gc();
++		if (params.timers)
++		{
++			bt = boottime_ms();
++			if (bt >= bt_next) bt_next = TimerPoolRun(&params.timers, &params.timers_dirty, bt);
++			else if (params.timers_dirty) bt_next = 0;
++		}
++	}
++
++exitok:
++	res = 0;
++exiterr:
++	if (Fpid) fclose(Fpid);
++	free(mod);
++	lua_shutdown();
++	rawsend_cleanup();
++	return res;
++}
++
+ #elif defined(BSD)
+ 
+ static int dvt_main(void)
+@@ -3379,6 +3482,8 @@
+ 
+ #ifdef __linux__
+ 	result = nfq_main();
++#elif defined(__APPLE__)
++	result = mac_main();
+ #elif defined(BSD)
+ 	result = dvt_main();
+ #elif defined(__CYGWIN__)

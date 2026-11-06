@@ -86,7 +86,7 @@ The command-line interface (CLI) is designed for everyday users, with straightfo
 
 ### `Which platforms are supported?`
 
-**[Windows 10/11 x64](https://github.com/igareck/anti-dpi-for-russia/releases)** ★ **[Linux Ubuntu/Debian x64](https://github.com/igareck/anti-dpi-for-russia/releases)**
+**[Windows 10/11 x64](https://github.com/igareck/anti-dpi-for-russia/releases)** ★ **[Linux Ubuntu/Debian x64](https://github.com/igareck/anti-dpi-for-russia/releases)** ★ **macOS 26+ ARM64/x64**
 
 An Android version is planned.
 
@@ -458,11 +458,25 @@ If you installed the program elsewhere, replace `/opt/igareck-antidpi` with your
 
 </details>
 
+## `macOS 26+ ARM64/x64`
+
+The macOS version preserves all 484 Zapret2 Lua strategies and uses a native PF/pflog + BPF transport. Installation builds `macws2` from the pinned commit and dry-runs every strategy. SIP does not need to be disabled.
+
+```bash
+tar -xzf Igareck_AntiDPI_CLI_v1.0_macOS.tar.gz
+cd Igareck_AntiDPI_CLI_v1.0_macOS
+bash INSTALL.sh
+```
+
+The default installation folder is `/opt/igareck-antidpi`. Run `igareck-antidpi` or `sudo bash /opt/igareck-antidpi/START.sh`.
+
+**[Full macOS guide](macos/README_Установка_macOS_v1.0.txt)** · **[macOS strategy reference](macos/README_Стратегии_macOS_v1.0.txt)**. Disable a full-tunnel VPN/TUN before running YouTube checks.
+
 ---
 
 ## Building from Source
 
-Instructions for building the **Windows ZIP/EXE** and **Linux TAR.GZ** packages from source are in **[packaging/BUILDING.md](packaging/BUILDING.md)**.
+Instructions for building the **Windows ZIP/EXE**, **Linux TAR.GZ**, and **macOS TAR.GZ** packages are in **[packaging/BUILDING.md](packaging/BUILDING.md)**.
 
 Ready-to-install packages are available in **[Releases](https://github.com/igareck/anti-dpi-for-russia/releases)**.
 

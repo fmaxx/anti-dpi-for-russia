@@ -86,7 +86,7 @@ Tor-мосты после запуска **Igareck AntiDPI**, например, 
 
 ### `Какие платформы поддерживает?`
 
-**[Windows 10/11 x64](https://github.com/igareck/anti-dpi-for-russia/releases)** ★ **[Linux Ubuntu/Debian x64](https://github.com/igareck/anti-dpi-for-russia/releases)**
+**[Windows 10/11 x64](https://github.com/igareck/anti-dpi-for-russia/releases)** ★ **[Linux Ubuntu/Debian x64](https://github.com/igareck/anti-dpi-for-russia/releases)** ★ **macOS 26+ ARM64/x64**
 
 Планируется разработка Android-версии.
 
@@ -458,11 +458,25 @@ sudo bash /opt/igareck-antidpi/DELETE.sh --purge
 
 </details>
 
+## `macOS 26+ ARM64/x64`
+
+Версия использует все 484 Lua-стратегии Zapret2 и нативный транспорт PF/pflog + BPF. Установка собирает `macws2` из проверенного коммита и проверяет все стратегии. SIP отключать не требуется.
+
+```bash
+tar -xzf Igareck_AntiDPI_CLI_v1.0_macOS.tar.gz
+cd Igareck_AntiDPI_CLI_v1.0_macOS
+bash INSTALL.sh
+```
+
+По умолчанию программа устанавливается в `/opt/igareck-antidpi`. Запуск: `igareck-antidpi` или `sudo bash /opt/igareck-antidpi/START.sh`.
+
+**[Полная инструкция macOS](macos/README_Установка_macOS_v1.0.txt)** · **[Справочник стратегий macOS](macos/README_Стратегии_macOS_v1.0.txt)**. Перед проверкой YouTube отключите полный VPN/TUN.
+
 ---
 
 ## Сборка из исходников
 
-Инструкции по сборке **Windows ZIP/EXE** и **Linux TAR.GZ** из исходников находятся в **[packaging/BUILDING.md](packaging/BUILDING.md)**.
+Инструкции по сборке **Windows ZIP/EXE**, **Linux TAR.GZ** и **macOS TAR.GZ** находятся в **[packaging/BUILDING.md](packaging/BUILDING.md)**.
 
 Готовые версии для установки доступны в **[Releases](https://github.com/igareck/anti-dpi-for-russia/releases)**.
 

@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "date": "2026-11-05",
+  "recipes": 484,
+  "golden": 45,
+  "silver": 439,
+  "families": 23,
+  "distribution": "tar.gz",
+  "minimum_macos": "26"
+}

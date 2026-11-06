@@ -1,5 +1,13 @@
 # Changelog / История изменений
 
+## 1.0 — macOS
+
+| English | Русский |
+| --- | --- |
+| Add macOS 26+ support for Apple Silicon and Intel while preserving all 484 Zapret2 Lua strategies. | Добавлена поддержка macOS 26+ на Apple Silicon и Intel с сохранением всех 484 Lua-стратегий Zapret2. |
+| Add a native PF/pflog + BPF transport, physical adapter selection and automatic YouTube checks. | Добавлены нативный транспорт PF/pflog + BPF, выбор физического адаптера и автоматическая проверка YouTube. |
+| Add pinned-source installation, strategy dry-runs, desktop launchers and owned PF cleanup/recovery. | Добавлены установка из закреплённых исходников, dry-run стратегий, ярлыки и очистка/восстановление собственных PF-правил. |
+
 ## 1.1 — Linux
 
 | English | Русский |
